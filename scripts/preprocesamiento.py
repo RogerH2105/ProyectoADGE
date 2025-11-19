@@ -35,7 +35,7 @@ def preprocesar_reviews(input_path, output_path):
     df_indexed.write.mode("overwrite").parquet(output_path)
 
     spark.stop()
-    print("PREPROCESAMIENTO COMPLETADO")
+    print("PREPROCESAMIENTO COMPLETADOO")
 
 
 if __name__ == "__main__":
