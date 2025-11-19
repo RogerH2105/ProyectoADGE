@@ -32,13 +32,11 @@ def parse_raw_amazon_hdfs(input_path, output_path):
         .appName("ParseAmazonRawToParquet") \
         .getOrCreate()
 
-    print("=== LEYENDO DATASET CRUDO DESDE HDFS ===")
+    print("LEYENDO DATASET CRUDO DESDE HDFS")
     rdd = spark.sparkContext.textFile(input_path)
 
-    # Convertir RDD de líneas → RDD de estructuras tipo JSON por registro
     parsed_rdd = rdd.mapPartitions(parse_line_pairs)
 
-    # Aplanar (porque mapPartitions devuelve listas)
     flat_rdd = parsed_rdd.flatMap(lambda x: x)
 
     print(" CONVIRTIENDO RDD A DATAFRAME")
@@ -56,6 +54,6 @@ def parse_raw_amazon_hdfs(input_path, output_path):
 
 if __name__ == "__main__":
     input_path = "hdfs:///10.6.101.127:9000/data/raw/Arts.txt"
-    output_path = "hdfs:///10.6.101.127:9000/data/spark/arts_tabular/"
+    output_path = "hdfs:///10.6.101.127:9000/data/proyecto/tabular/"
 
     parse_raw_amazon_hdfs(input_path, output_path)
