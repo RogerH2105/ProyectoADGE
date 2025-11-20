@@ -39,7 +39,7 @@ def preprocesar_reviews(input_path, output_path):
 
 
 if __name__ == "__main__":
-    input_path = "hdfs:///10.6.101.127:9000/data/proyecto/tabular/"
-    output_path = "hdfs:///10.6.101.127:9000/data/proyecto/processed/"
+    input_path = "hdfs://10.6.101.127:9000/data/proyecto/tabular/"
+    output_path = "hdfs://10.6.101.127:9000/data/proyecto/processed/"
 
     preprocesar_reviews(input_path, output_path)
