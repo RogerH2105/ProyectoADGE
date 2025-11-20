@@ -13,10 +13,12 @@ def preprocesar_reviews(input_path, output_path):
     print("COLUMNAS ORIGINALES")
     print(df.columns)
 
-    df = df.withColumnRenamed("reviewerID", "user_id") \
+    # Renombrar columnas correctamente según las columnas reales
+    df = df.withColumnRenamed("review/userId", "user_id") \
            .withColumnRenamed("product/productId", "item_id") \
            .withColumnRenamed("review/score", "rating")
 
+    # Selección y limpieza básica
     df2 = df.select("user_id", "item_id", "rating") \
             .dropna(subset=["user_id", "item_id", "rating"]) \
             .withColumn("rating", col("rating").cast("float"))
@@ -31,15 +33,15 @@ def preprocesar_reviews(input_path, output_path):
     print("DATAFRAME FINAL LISTO PARA ALS")
     df_indexed.show(5)
 
-    print("GUARDANDO DATASET PROCESADO EN HDFS ")
+    print("GUARDANDO DATASET PROCESADO EN HDFS")
     df_indexed.write.mode("overwrite").parquet(output_path)
 
     spark.stop()
-    print("PREPROCESAMIENTO COMPLETADOO")
+    print("PREPROCESAMIENTO COMPLETADO")
 
 
 if __name__ == "__main__":
     input_path = "hdfs://10.6.101.127:9000/data/proyecto/tabular/"
-    output_path = "hdfs://10.6.101.127:9000/data/proyecto/processed/"
+    output_path = "hdfs://10.6.101.127:9000/data/proyecto/preprocesado/"
 
     preprocesar_reviews(input_path, output_path)
