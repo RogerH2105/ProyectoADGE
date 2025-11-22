@@ -1,69 +1,60 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-from pyspark.ml.feature import StringIndexer
+from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
 
-def preprocesar_reviews(ruta_hdfs_input, ruta_hdfs_output):
-    """
-    Preprocesa el dataset de reviews almacenado en HDFS:
-      - Selecciona las columnas necesarias
-      - Filtra valores nulos o inconsistentes
-      - Convierte IDs string a índices numéricos (ALS los exige)
-      - Guarda el resultado en formato Parquet listo para entrenamiento
-    """
-
+def entrenar_als(input_path, model_path, recs_path):
     spark = SparkSession.builder \
-        .appName("PreprocesamientoALS") \
+        .appName("EntrenamientoALS") \
         .getOrCreate()
 
-    print("=== Leyendo dataset desde HDFS ===")
-    df = spark.read.option("header", "true").csv(ruta_hdfs_input)
+    print("=== LEYENDO DATASET PREPROCESADO DESDE HDFS ===")
+    df = spark.read.parquet(input_path)
 
-    print("=== Columnas originales ===")
-    print(df.columns)
+    df = df.select("userIndex", "itemIndex", "rating")
 
-    # Seleccionar solo lo que ALS necesita
-    print("=== Seleccionando columnas relevantes ===")
-    df2 = df.select(
-        col("reviewerID").alias("user_id"),
-        col("product/productId").alias("item_id"),
-        col("review/score").alias("rating")
+    print("=== SPLIT TRAIN/TEST ===")
+    train, test = df.randomSplit([0.8, 0.2], seed=42)
+
+    print("=== ENTRENANDO ALS ===")
+    als = ALS(
+        userCol="userIndex",
+        itemCol="itemIndex",
+        ratingCol="rating",
+        nonnegative=True,
+        coldStartStrategy="drop",   # evita NaN en predicciones
+        maxIter=10,
+        regParam=0.1,
+        rank=20                     # tamaño de embedding
     )
 
-    # Convertir rating a float
-    df2 = df2.withColumn("rating", col("rating").cast("float"))
+    model = als.fit(train)
 
-    # Filtrar valores nulos
-    df2 = df2.dropna(subset=["user_id", "item_id", "rating"])
+    print("=== EVALUANDO MODELO ===")
+    predictions = model.transform(test)
 
-    print("=== Aplicando StringIndexer ===")
-
-    # user_id → userIndex
-    idx_user = StringIndexer(
-        inputCol="user_id",
-        outputCol="userIndex"
+    evaluator = RegressionEvaluator(
+        metricName="rmse", 
+        labelCol="rating",
+        predictionCol="prediction"
     )
 
-    # item_id → itemIndex
-    idx_item = StringIndexer(
-        inputCol="item_id",
-        outputCol="itemIndex"
-    )
+    rmse = evaluator.evaluate(predictions)
+    print(f"RMSE DEL MODELO: {rmse}")
 
-    # Ajustar y transformar
-    df_indexed = idx_user.fit(df2).transform(df2)
-    df_indexed = idx_item.fit(df_indexed).transform(df_indexed)
+    print("=== GUARDANDO MODELO EN HDFS ===")
+    model.save(model_path)
 
-    print("=== DataFrame final listo para ALS ===")
-    df_indexed.show(5)
+    print("=== GENERANDO 10 RECOMENDACIONES POR USUARIO ===")
+    user_recs = model.recommendForAllUsers(10)
+    user_recs.write.mode("overwrite").parquet(recs_path)
 
-    print("=== Guardando preprocesado en HDFS (Parquet) ===")
-    df_indexed.write.mode("overwrite").parquet(ruta_hdfs_output)
-
+    print("=== PROCESO FINALIZADO ===")
     spark.stop()
-    print("=== PROCESO DE PREPROCESAMIENTO COMPLETADO ===")
 
-# Ejecución
+
 if __name__ == "__main__":
-    ruta_input = "hdfs:///10.6.127:9000/data/spark/Arts_tabular.csv"
-    ruta_output = "hdfs:///10.6.127:9000/data/spark/preprocesado/"
-    preprocesar_reviews(ruta_input, ruta_output)
+    input_path = "hdfs://10.6.101.127:9000/data/proyecto/preprocesado/"
+    model_path = "hdfs://10.6.101.127:9000/data/proyecto/modelo_als/"
+    recs_path  = "hdfs://10.6.101.127:9000/data/proyecto/recomendaciones/"
+
+    entrenar_als(input_path, model_path, recs_path)
