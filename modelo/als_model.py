@@ -29,7 +29,7 @@ def entrenar_als(input_path, model_path, recs_path):
 
     model = als.fit(train)
 
-    print("=== EVALUANDO MODELO ===")
+    print("EVALUANDO MODELO")
     predictions = model.transform(test)
 
     evaluator = RegressionEvaluator(
@@ -41,14 +41,14 @@ def entrenar_als(input_path, model_path, recs_path):
     rmse = evaluator.evaluate(predictions)
     print(f"RMSE DEL MODELO: {rmse}")
 
-    print("=== GUARDANDO MODELO EN HDFS ===")
+    print("GUARDANDO MODELO EN HDFS")
     model.save(model_path)
 
-    print("=== GENERANDO 10 RECOMENDACIONES POR USUARIO ===")
-    user_recs = model.recommendForAllUsers(10)
+    print("GENERANDO 5 RECOMENDACIONES POR USUARIO")
+    user_recs = model.recommendForAllUsers(5)
     user_recs.write.mode("overwrite").parquet(recs_path)
 
-    print("=== PROCESO FINALIZADO ===")
+    print("PROCESO FINALIZADO")
     spark.stop()
 
 
